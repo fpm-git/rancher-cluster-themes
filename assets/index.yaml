@@ -12,8 +12,28 @@ entries:
       catalog.cattle.io/ui-component: plugins
       catalog.cattle.io/ui-extensions-version: '>= 3.0.0 < 4.0.0'
     apiVersion: v2
+    appVersion: 0.2.0
+    created: "2026-11-24T17:00:17.042154064Z"
+    description: Per-cluster themes for Rancher
+    digest: b04d0f05da4e04ae33898a22896339256616c8ef0686b4c187d382fc3f5fbd39
+    name: rancher-cluster-themes
+    type: application
+    urls:
+    - assets/rancher-cluster-themes/rancher-cluster-themes-0.2.0.tgz
+    version: 0.2.0
+  - annotations:
+      catalog.cattle.io/certified: rancher
+      catalog.cattle.io/display-name: Cluster Themes
+      catalog.cattle.io/namespace: cattle-ui-plugin-system
+      catalog.cattle.io/os: linux
+      catalog.cattle.io/permits-os: linux, windows
+      catalog.cattle.io/rancher-version: '>= 2.15.2 < 2.16.0'
+      catalog.cattle.io/scope: management
+      catalog.cattle.io/ui-component: plugins
+      catalog.cattle.io/ui-extensions-version: '>= 3.0.0 < 4.0.0'
+    apiVersion: v2
     appVersion: 0.1.1
-    created: "2026-11-24T03:40:23.810037022Z"
+    created: "2026-11-24T03:40:24.069913037Z"
     description: Per-cluster themes for Rancher
     digest: 06def3ee5033323f2d960e10d096a3e7929dd50e9a46170169d99359e4dd5bcc
     name: rancher-cluster-themes
@@ -21,4 +41,4 @@ entries:
     urls:
     - assets/rancher-cluster-themes/rancher-cluster-themes-0.1.1.tgz
     version: 0.1.1
-generated: "2026-11-24T03:40:23.809386116Z"
+generated: "2026-11-24T17:00:17.041796175Z"
