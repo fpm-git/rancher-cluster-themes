@@ -10,24 +10,56 @@ The default style is `bold`. Set the cluster annotation
 to restore the default. Colors must be 3- or 6-digit hex values. Global pages
 and logging out restore the original appearance.
 
-## Install
+## Publish the catalog
 
-Publish a non-prerelease GitHub release tagged
-`rancher-cluster-themes-dev-0.1.0`. The release workflow builds and publishes
-the catalog image:
+The **CI** workflow builds and tests the catalog image but does not publish it.
+To publish the first image, commit the intended changes on `main` and push them:
 
-```text
-ghcr.io/<owner>/ui-extension-rancher-cluster-themes-dev:0.1.0
+```sh
+git push origin main
 ```
 
-In Rancher, open **Extensions → Manage Extension Catalogs → Import Extension
-Catalog**, enter the image reference, then install **Cluster Themes** from
-**Available**. The Rancher cluster must be able to pull the image; private images
-require an image pull secret in `cattle-ui-plugin-system`.
+Create the tag on the intended commit if it does not already exist. If it does
+exist, inspect it with `git show rancher-cluster-themes-dev-0.1.0` instead;
+do not move an existing release tag.
+
+```sh
+git tag -a rancher-cluster-themes-dev-0.1.0 -m "Initial catalog release"
+```
+
+Push the tag and publish the GitHub release (requires the `gh` CLI):
+
+```sh
+git push origin rancher-cluster-themes-dev-0.1.0
+gh release create rancher-cluster-themes-dev-0.1.0 --verify-tag \
+  --title "Cluster Themes 0.1.0" --notes "Initial Cluster Themes release."
+```
+
+In **Actions**, wait for **Release extension catalog** to succeed.
+
+The expected image is:
+
+```text
+ghcr.io/fpm-git/ui-extension-rancher-cluster-themes-dev:0.1.0
+```
 
 For each release, update the root `package.json` version and use
 `rancher-cluster-themes-dev-<version>` as the release tag. Also update the
 extension package version when the extension changes.
+
+## Install in Rancher
+
+1. Ensure the Rancher cluster can pull the published image. For a private GHCR
+   package, create a registry pull secret in `cattle-ui-plugin-system`.
+2. In Rancher, open **Extensions** from the main menu.
+3. Open the top-right action menu and select **Manage Extension Catalog**,
+   then **Import Extension Catalog**.
+4. Paste the image reference above into the image field. If the package is
+   private, select the registry pull secret, then click **Load**.
+5. Return to **Extensions**, select **Available**, and install **Cluster Themes**.
+
+Importing the catalog creates Rancher-managed resources to serve it; it does not
+install the extension until step 5.
 
 ## Development
 
