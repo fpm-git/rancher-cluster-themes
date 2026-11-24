@@ -97,8 +97,29 @@ jobs:
           git commit -m "Publish extension chart"
           git push origin HEAD:gh-pages
 
-  deploy:
+  prepare:
     needs: build
+    runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.artifact.outputs.name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      - name: Prepare Pages content
+        run: |
+          mkdir -p "$RUNNER_TEMP/helm-repository"
+          cp -a assets index.yaml "$RUNNER_TEMP/helm-repository/"
+      - name: Name Pages artifact
+        id: artifact
+        run: echo "name=github-pages-$GITHUB_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ runner.temp }}/helm-repository
+
+  deploy:
+    needs: prepare
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -110,18 +131,10 @@ jobs:
     outputs:
       page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-      - name: Prepare Pages content
-        run: |
-          mkdir -p "$RUNNER_TEMP/helm-repository"
-          cp -a assets index.yaml "$RUNNER_TEMP/helm-repository/"
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ${{ runner.temp }}/helm-repository
       - uses: actions/deploy-pages@v4
         id: deployment
+        with:
+          artifact_name: ${{ needs.prepare.outputs.artifact_name }}
 
   verify:
     needs: [build, deploy]

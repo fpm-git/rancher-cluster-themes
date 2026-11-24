@@ -45,7 +45,8 @@ gh workflow run release-charts.yml --ref main \
 ```
 
 CI tests chart packaging and version retention; a separate job checks the
-public index, chart and extension files after deployment.
+public index, chart and extension files after deployment. If deployment or
+verification fails, rerun the failed jobs.
 
 ## Install in Rancher
 
