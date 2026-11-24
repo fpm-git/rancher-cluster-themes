@@ -1,0 +1,115 @@
+name: Publish extension Helm repository
+
+on:
+  release:
+    types: [released]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing catalog release tag to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'rancher-cluster-themes-dev-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.event.release.tag_name }}
+          fetch-depth: 0
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: site
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: source/.nvmrc
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+      - name: Install dependencies
+        working-directory: source
+        run: yarn install --frozen-lockfile
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        with:
+          version: v3.8.0
+      - name: Check release and existing chart
+        working-directory: source
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
+        run: |
+          expected="$(node -p "require('./package.json').name + '-' + require('./package.json').version")"
+          chart="$(node -p "require('./pkg/rancher-cluster-themes/package.json').name")"
+          version="$(node -p "require('./pkg/rancher-cluster-themes/package.json').version")"
+          if [ "$RELEASE_TAG" != "$expected" ]; then
+            echo "::error::Release tag must be $expected"
+            exit 1
+          fi
+          if [ -e "../site/assets/$chart/$chart-$version.tgz" ] ||
+             [ -e "../site/extensions/$chart/$version" ] ||
+             [ -e "../site/extensions/$chart/$version.tgz" ]; then
+            echo "::error::Chart $chart-$version is already published; use a new version."
+            exit 1
+          fi
+      - name: Build Rancher extension chart
+        working-directory: source
+        run: yarn publish-pkgs -s "$GITHUB_REPOSITORY" -b gh-pages -n
+      - name: Merge Helm repository
+        working-directory: source
+        run: |
+          chart="$(node -p "require('./pkg/rancher-cluster-themes/package.json').name")"
+          version="$(node -p "require('./pkg/rancher-cluster-themes/package.json').version")"
+          test -s "assets/$chart/$chart-$version.tgz"
+          test -s "tmp/extensions/$chart/$version.tgz"
+          test -s "tmp/extensions/$chart/$version/plugin/$chart-$version.umd.min.js"
+          tar -tzf "tmp/extensions/$chart/$version.tgz" | grep -Fx "$version/plugin/$chart-$version.umd.min.js"
+          helm show chart "assets/$chart/$chart-$version.tgz" |
+            yq -e '.annotations."catalog.cattle.io/ui-component" == "plugins"'
+          if [ -f ../site/index.yaml ]; then
+            helm repo index assets --url assets/ --merge ../site/index.yaml
+          else
+            helm repo index assets --url assets/
+          fi
+          mkdir -p ../site/assets ../site/extensions
+          cp -a tmp/assets/. ../site/assets/
+          cp -a tmp/extensions/. ../site/extensions/
+          cp assets/index.yaml ../site/index.yaml
+      - name: Publish chart assets
+        working-directory: site
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add assets extensions index.yaml
+          git commit -m "Publish extension chart"
+          git push origin HEAD:gh-pages
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+      - name: Prepare Pages content
+        run: |
+          mkdir -p "$RUNNER_TEMP/helm-repository"
+          cp -a assets index.yaml "$RUNNER_TEMP/helm-repository/"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/helm-repository
+      - uses: actions/deploy-pages@v4
+        id: deployment

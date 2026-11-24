@@ -10,68 +10,43 @@ The default style is `bold`. Set the cluster annotation
 to restore the default. Colors must be 3- or 6-digit hex values. Global pages
 and logging out restore the original appearance.
 
-## Publish the catalog
+## Publish the Helm repository
 
-The **CI** workflow builds and tests the catalog image but does not publish it.
-The release workflow uses `GITHUB_TOKEN`; the repository must have write access
-to the GHCR package under its **Package settings → Manage Actions access**.
-To publish version 0.1.1, commit the intended changes on `main` and push them:
+The repository and its published extension assets must be public. Once, create
+the `gh-pages` branch from `main` if it does not exist, and set
+**Settings → Pages → Source** to **GitHub Actions**:
 
 ```sh
-git push origin main
+git push origin main:refs/heads/gh-pages
 ```
 
-Create the tag on the intended commit if it does not already exist. If it does
-exist, inspect it with `git show rancher-cluster-themes-dev-0.1.1` instead;
-do not move an existing release tag.
+After pushing this workflow to `main`, publish the existing 0.1.1 release:
 
 ```sh
-git tag -a rancher-cluster-themes-dev-0.1.1 -m "Catalog release 0.1.1"
-```
-
-Push the tag and publish the GitHub release (requires the `gh` CLI):
-
-```sh
-git push origin rancher-cluster-themes-dev-0.1.1
-gh release create rancher-cluster-themes-dev-0.1.1 --verify-tag \
-  --title "Cluster Themes 0.1.1" --notes "Fix Rancher extension compatibility."
-```
-
-In **Actions**, wait for **Release extension catalog** to succeed.
-To retry a release after fixing a publishing failure, run the workflow from
-`main` using the existing release tag:
-
-```sh
-gh workflow run release-catalog.yml --ref main \
+gh workflow run release-charts.yml --ref main \
   -f release_tag=rancher-cluster-themes-dev-0.1.1
 ```
 
-The expected image is:
+Wait for **Publish extension Helm repository** to succeed. Its public URL is:
 
 ```text
-ghcr.io/fpm-git/ui-extension-rancher-cluster-themes-dev:0.1.1
+https://fpm-git.github.io/rancher-cluster-themes
 ```
 
-For each release, update the root `package.json` version and use
-`rancher-cluster-themes-dev-<version>` as the release tag. Also update the
-extension package version when the extension changes.
+For future releases, update both `package.json` versions, commit the changes,
+and publish a GitHub release tagged `rancher-cluster-themes-dev-<version>`.
+The workflow preserves previous charts and extension files on `gh-pages`. Do
+not reuse a published extension version. If the Pages deployment fails after
+the build succeeds, rerun the failed deployment job.
 
 ## Install in Rancher
 
-1. Ensure the Rancher cluster can pull the published image. For a private GHCR
-   package, create a registry pull secret in `cattle-ui-plugin-system`.
-2. In Rancher, open **Extensions** from the main menu.
-3. Open the top-right action menu and select **Manage Extension Catalog**,
-   then **Import Extension Catalog**.
-4. Paste the image reference above into the image field. If the package is
-   private, select the registry pull secret, then click **Load**.
-5. Return to **Extensions**, select **Available**, and install **Cluster Themes**.
+1. In Rancher's local cluster, open **Apps → Repositories** and add the URL
+   above as an HTTP Helm repository.
+2. Reload **Extensions → Available** and install **Cluster Themes**.
 
-Importing the catalog creates Rancher-managed resources to serve it; it does not
-install the extension until step 5.
-
-If the catalog is already imported, update its Deployment image to the new
-reference instead, then refresh its repository in Rancher.
+Existing installations from the catalog image still depend on that catalog's
+service. Do not remove it until those installations have been migrated.
 
 ## Development
 
