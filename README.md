@@ -1,20 +1,25 @@
 # Rancher Cluster Themes
 
-A Rancher UI extension that colors cluster pages using the cluster's existing
-**Cluster Appearance → Badge Background Color**. It changes page, navigation,
-table, modal, drawer and log surfaces. Clusters without a badge color retain
-Rancher's normal appearance.
+A Rancher UI extension that colors cluster pages. It changes page, navigation,
+table, modal, drawer and log surfaces.
 
 Versions 0.1.1 and 0.2.0 were installed and visually verified in Rancher 2.15.2.
 
-Use the brush button in a cluster's header to choose **Layered**, **Immersive**
-or **Minimal**. The shared style applies to everyone unless they choose a
-personal override, saved in their Rancher user preferences. Changing the shared
-style requires permission to edit the cluster.
+Themes are **off by default for every account**, including existing users.
+Use the brush button in a cluster's header to enable them for your account,
+then choose a style and color. **Subtle** is fainter than **Minimal**; you can
+also turn them off for an individual cluster. Personal settings are saved in
+Rancher user preferences and do not affect other users.
+
+Colors can follow the cluster badge, its complementary hue, or a curated
+palette. A curated color works even without a badge color. The shared style
+applies only to users who enable themes and have no personal style override.
+Changing it requires permission to edit the cluster.
 
 The shared style is stored in the `rancher-cluster-themes.local/style`
 annotation. The default is `layered`; the legacy values `bold` and `soft` map
-to `layered` and `minimal`. Badge colors must be 3- or 6-digit hex values.
+to `layered` and `minimal`. Badge-based colors require a 3- or 6-digit hex badge.
+Existing per-cluster style preferences remain saved when themes are disabled.
 Global pages and logging out restore the original appearance.
 
 ## Publish the Helm repository
@@ -100,6 +105,11 @@ the browser must be able to reach the local server.
 
 Test cluster switches, global pages, dark/light modes and alert readability before
 installing for users. CSS tokens are Rancher internals and may change on upgrades.
-Strong colors can reduce text and link contrast; verify the chosen colors in
-both light and dark modes.
+The tint is reduced to maintain 4.5:1 body-text and link contrast where the
+untinted background already meets it, and otherwise not worsen it. If those
+Rancher colors cannot be read, the theme is not applied. Other UI elements still
+need visual checks in both light and dark modes. See
+[WCAG text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html),
+[non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
+and [Material color guidance](https://m3.material.io/styles/color/system/overview).
 If an extension prevents navigation, use [Safe Mode](https://extensions.rancher.io/extensions/next/advanced/safe-mode).

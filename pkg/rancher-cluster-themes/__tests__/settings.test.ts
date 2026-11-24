@@ -1,7 +1,16 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick, reactive } from 'vue';
 import ThemeSettings from '../ThemeSettings.vue';
-import { PREFERENCE } from '../preferences';
+import { COLOR_PREFERENCE, ENABLED_PREFERENCE, PREFERENCE } from '../preferences';
+
+beforeEach(() => {
+  document.body.style.setProperty('--body-text', '#111111');
+  document.body.style.setProperty('--link', '#3458a8');
+});
+
+afterEach(() => {
+  document.body.removeAttribute('style');
+});
 
 test('settings save a personal style and show shared-save errors', async () => {
   const preference = { data: {}, save: jest.fn().mockResolvedValue(undefined) };
@@ -10,7 +19,7 @@ test('settings save a personal style and show shared-save errors', async () => {
     getters: {
       currentCluster: { id: 'c-123', metadata: { annotations: { 'ui.rancher/badge-color': '#f00' } } },
       targetRoute: { params: { cluster: 'c-123' } },
-      'prefs/get': () => ({}),
+      'prefs/get': (key: string) => key === ENABLED_PREFERENCE ? false : {},
     },
     dispatch: jest.fn((type: string) => Promise.resolve(type === 'rancher/find' ? cluster : preference)),
     commit: jest.fn(),
@@ -35,7 +44,7 @@ test('disables settings if the current cluster changes while the dialog is open'
     getters: reactive({
       currentCluster: { id: 'c-123', metadata: { annotations: {} } },
       targetRoute: { params: { cluster: 'c-123' } },
-      'prefs/get': () => ({}),
+      'prefs/get': (key: string) => key === ENABLED_PREFERENCE ? false : {},
     }),
     dispatch: jest.fn().mockResolvedValue({ data: {} }),
   };
@@ -45,4 +54,44 @@ test('disables settings if the current cluster changes while the dialog is open'
   await nextTick();
   expect(wrapper.get('#cluster-themes-shared').attributes('disabled')).toBeDefined();
   expect(wrapper.get('[role="alert"]').text()).toContain('cluster changed');
+});
+
+test('settings opt in for the account and save a personal color', async () => {
+  const preference = { data: {}, save: jest.fn().mockResolvedValue(undefined) };
+  const store = {
+    getters: {
+      currentCluster: { id: 'c-123', metadata: { annotations: { 'ui.rancher/badge-color': '#f00' } } },
+      targetRoute: { params: { cluster: 'c-123' } },
+      'prefs/get': (key: string) => key === ENABLED_PREFERENCE ? false : {},
+    },
+    dispatch: jest.fn().mockResolvedValue(preference),
+    commit: jest.fn(),
+  };
+  const wrapper = mount(ThemeSettings, { global: { mocks: { $store: store } } });
+  await flushPromises();
+  expect((wrapper.get('#cluster-themes-enabled').element as HTMLInputElement).checked).toBe(false);
+  await wrapper.get('#cluster-themes-enabled').setValue(true);
+  await wrapper.findAll('button').find((button) => button.text() === 'Save account setting')!.trigger('click');
+  await flushPromises();
+  expect(store.commit).toHaveBeenCalledWith('prefs/load', { key: ENABLED_PREFERENCE, value: true });
+  await wrapper.get('#cluster-themes-color').setValue('plum');
+  await wrapper.findAll('button').find((button) => button.text() === 'Save my color')!.trigger('click');
+  await flushPromises();
+  expect(store.commit).toHaveBeenCalledWith('prefs/load', { key: COLOR_PREFERENCE, value: { 'c-123': 'plum' } });
+});
+
+test('disables settings when preferences cannot be loaded', async () => {
+  const store = {
+    getters: {
+      currentCluster: { id: 'c-123', metadata: { annotations: {} } },
+      targetRoute: { params: { cluster: 'c-123' } },
+      'prefs/get': (key: string) => key === ENABLED_PREFERENCE ? false : {},
+    },
+    dispatch: jest.fn().mockRejectedValue(new Error('preferences unavailable')),
+  };
+  const wrapper = mount(ThemeSettings, { global: { mocks: { $store: store } } });
+  await flushPromises();
+  expect(wrapper.get('[role="alert"]').text()).toContain('preferences unavailable');
+  expect(wrapper.get('#cluster-themes-enabled').attributes('disabled')).toBeDefined();
+  expect(wrapper.get('#cluster-themes-color').attributes('disabled')).toBeDefined();
 });
