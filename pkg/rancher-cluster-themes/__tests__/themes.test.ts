@@ -275,6 +275,22 @@ test('rejects invalid and translucent Rancher colors', () => {
   expect(themeTints('layered', '#ff0000', true)).toBeUndefined();
 });
 
+test('re-reads Rancher colors when the theme class changes without a store change', async () => {
+  const store = createMockStore();
+  document.body.classList.add('theme-dark');
+  startThemes(store);
+  expect(document.body.style.getPropertyValue('--sortable-table-bg')).toContain('rgb(23, 28, 34)');
+  document.body.classList.remove('theme-dark');
+  document.body.style.setProperty('--body-text', '#111111');
+  document.body.style.setProperty('--link', '#3458a8');
+  await Promise.resolve();
+  expect(document.body.style.getPropertyValue('--sortable-table-bg')).toContain('rgb(242, 242, 242)');
+  stopThemes();
+  document.body.classList.add('theme-dark');
+  await Promise.resolve();
+  expect(document.body.style.getPropertyValue('--sortable-table-bg')).toBe('');
+});
+
 test('rechecks text colors after Rancher updates its theme classes', async () => {
   const store = createMockStore();
   store.overrides.production = 'immersive';

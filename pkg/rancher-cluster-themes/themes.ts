@@ -33,6 +33,7 @@ const properties = [
 ] as const;
 
 let unwatch: (() => void) | undefined;
+let classObserver: MutationObserver | undefined;
 let originalStyles: Map<string, { value: string; priority: string }> | undefined;
 let activeStore: ThemeStore | undefined;
 
@@ -258,12 +259,17 @@ export function startThemes(store: ThemeStore): void {
     },
     { immediate: true, flush: 'sync' }
   );
+  // Rancher sets the theme class after startup and for the "auto" theme, which the store watch does not report.
+  classObserver = new MutationObserver(() => syncTheme(store));
+  classObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   void loadPreferences(store).catch((error) => console.error('Cluster Themes: could not load personal themes.', error));
 }
 
 export function stopThemes(): void {
   unwatch?.();
   unwatch = undefined;
+  classObserver?.disconnect();
+  classObserver = undefined;
   activeStore = undefined;
   clearTheme();
 }
