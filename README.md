@@ -5,10 +5,17 @@ A Rancher UI extension that colors cluster pages using the cluster's existing
 table, modal, drawer and log surfaces. Clusters without a badge color retain
 Rancher's normal appearance.
 
-The default style is `bold`. Set the cluster annotation
-`rancher-cluster-themes.local/style` to `soft` for a lighter tint, or `bold`
-to restore the default. Colors must be 3- or 6-digit hex values. Global pages
-and logging out restore the original appearance.
+The 0.1.1 MVP was installed and its cluster theme verified in Rancher 2.15.2.
+
+Use the brush button in a cluster's header to choose **Layered**, **Immersive**
+or **Minimal**. The shared style applies to everyone unless they choose a
+personal override, saved in their Rancher user preferences. Changing the shared
+style requires permission to edit the cluster.
+
+The shared style is stored in the `rancher-cluster-themes.local/style`
+annotation. The default is `layered`; the legacy values `bold` and `soft` map
+to `layered` and `minimal`. Badge colors must be 3- or 6-digit hex values.
+Global pages and logging out restore the original appearance.
 
 ## Publish the Helm repository
 
@@ -53,6 +60,7 @@ verification fails, rerun the failed jobs.
 1. In Rancher's local cluster, open **Apps → Repositories** and add the URL
    above as an HTTP Helm repository.
 2. Reload **Extensions → Available** and install **Cluster Themes**.
+3. When installation completes, click **Reload** in Rancher to load it.
 
 Existing installations from the catalog image still depend on that catalog's
 service. Do not remove it until those installations have been migrated.

@@ -2,16 +2,22 @@ import { startThemes, stopThemes } from '../themes';
 import { createStore } from 'vuex';
 import extension from '../index';
 import { init } from '../product';
+import { ThemeStyle } from '../preferences';
 
 function createMockStore() {
   let callback = () => {};
+  const overrides: Record<string, ThemeStyle> = {};
   const store = {
     getters: {
       clusterId:      'production',
       targetRoute:    { params: { cluster: 'production' } },
       currentCluster: { id: 'production', metadata: { annotations: { 'ui.rancher/badge-color': '#f00', 'rancher-cluster-themes.local/style': 'bold' } } },
       'prefs/theme':  'light',
+      'prefs/get':    () => overrides,
     },
+    commit: jest.fn(),
+    dispatch: jest.fn().mockResolvedValue({ data: {} }),
+    overrides,
     watch: jest.fn((_selector, onChange, options) => {
       callback = onChange;
       if (options.immediate) callback();
@@ -28,12 +34,23 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
+test('a personal style overrides the shared style and can return to it', () => {
+  const store = createMockStore();
+  startThemes(store);
+  store.overrides.production = 'immersive';
+  store.update();
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 18%');
+  delete store.overrides.production;
+  store.update();
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 8%');
+});
+
 test('themes the page and reacts to a cluster switch and theme preference', () => {
   const store = createMockStore();
   startThemes(store);
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 30%');
-  expect(document.body.style.getPropertyValue('--nav-bg')).toContain('#f00 30%');
-  expect(document.body.style.getPropertyValue('--sortable-table-header-bg')).toContain('#f00 35%');
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 8%');
+  expect(document.body.style.getPropertyValue('--nav-bg')).toContain('#f00 19%');
+  expect(document.body.style.getPropertyValue('--sortable-table-header-bg')).toContain('#f00 14%');
 
   store.getters.targetRoute.params.cluster = 'staging';
   store.update();
@@ -45,7 +62,7 @@ test('themes the page and reacts to a cluster switch and theme preference', () =
   store.getters.currentCluster.metadata.annotations['rancher-cluster-themes.local/style'] = 'soft';
   store.getters['prefs/theme'] = 'dark';
   store.update();
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#171b20 86%, #0088ff 14%');
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#171b20 96%, #0088ff 4%');
 });
 
 test('clears the theme on global pages and restores prior inline styles on logout', () => {
@@ -98,12 +115,20 @@ test('reacts to real Vuex changes without waiting for another navigation', () =>
         state.route.params.cluster = '_';
       },
     },
+    modules: {
+      prefs: {
+        namespaced: true,
+        getters: { get: () => () => ({}) },
+        mutations: { setDefinition() {} },
+        actions: { loadServer: () => ({ data: {} }) },
+      },
+    },
   });
 
   startThemes(store);
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 30%');
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 8%');
   store.commit('changeColor', '#00f');
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#00f 30%');
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#00f 8%');
   store.commit('leaveCluster');
   expect(document.body.style.getPropertyValue('--body-bg')).toBe('');
 });
@@ -114,11 +139,18 @@ test('starts when dynamically loaded and cleans up when uninstalled', () => {
     addProduct: jest.fn(),
     addUninstallHook: jest.fn(),
     addNavHooks: jest.fn(),
+    addAction: jest.fn(),
+    register: jest.fn(),
   };
   extension(plugin);
   const store = createMockStore();
   init(plugin, store);
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 30%');
+  const action = plugin.addAction.mock.calls[0][2];
+  expect(action.enabled({ $route: { params: { cluster: '_' } } })).toBe(false);
+  expect(action.enabled({ $route: { params: { cluster: 'production' } } })).toBe(true);
+  action.invoke();
+  expect(store.dispatch).toHaveBeenCalledWith('management/promptModal', expect.objectContaining({ component: 'ClusterThemesSettings' }));
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 8%');
   plugin.addUninstallHook.mock.calls[0][0]();
   expect(document.body.style.getPropertyValue('--body-bg')).toBe('');
 });
