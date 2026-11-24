@@ -9,6 +9,10 @@ on:
         description: Existing catalog release tag to publish
         required: true
         type: string
+      redeploy:
+        description: Redeploy existing published assets without rebuilding
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -40,11 +44,14 @@ jobs:
         with:
           node-version-file: source/.nvmrc
       - name: Install Yarn
+        if: ${{ !inputs.redeploy }}
         run: npm install --global yarn@1.22.22
       - name: Install dependencies
+        if: ${{ !inputs.redeploy }}
         working-directory: source
         run: yarn install --frozen-lockfile
       - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        if: ${{ !inputs.redeploy }}
         with:
           version: v3.8.0
       - name: Check release
@@ -62,12 +69,26 @@ jobs:
           fi
           echo "chart=$chart" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Check existing published assets
+        if: ${{ inputs.redeploy }}
+        working-directory: site
+        env:
+          CHART: ${{ steps.metadata.outputs.chart }}
+          VERSION: ${{ steps.metadata.outputs.version }}
+        run: |
+          yq -e '.entries[strenv(CHART)][] | select(.version == strenv(VERSION))' index.yaml > /dev/null
+          test -s "assets/$CHART/$CHART-$VERSION.tgz"
+          test -s "extensions/$CHART/$VERSION.tgz"
+          test -s "extensions/$CHART/$VERSION/plugin/$CHART-$VERSION.umd.min.js"
       - name: Build Rancher extension chart
+        if: ${{ !inputs.redeploy }}
         working-directory: source
         run: yarn publish-pkgs -s "$GITHUB_REPOSITORY" -b gh-pages -n
       - name: Merge Helm repository
+        if: ${{ !inputs.redeploy }}
         run: bash tooling/scripts/merge-helm-repository.sh "$GITHUB_WORKSPACE/source" "$GITHUB_WORKSPACE/site"
       - name: Publish chart assets
+        if: ${{ !inputs.redeploy }}
         working-directory: site
         run: |
           git config user.name 'github-actions[bot]'
@@ -86,6 +107,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -99,17 +122,27 @@ jobs:
           path: ${{ runner.temp }}/helm-repository
       - uses: actions/deploy-pages@v4
         id: deployment
+
+  verify:
+    needs: [build, deploy]
+    runs-on: ubuntu-latest
+    steps:
       - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
           version: v3.8.0
       - name: Verify published repository
         env:
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
           CHART: ${{ needs.build.outputs.chart }}
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           index="$RUNNER_TEMP/published-index.yaml"
           chart_file="$RUNNER_TEMP/published-chart.tgz"
+          if [ -z "$PAGE_URL" ]; then
+            echo "::error::Pages deployment did not return a URL"
+            exit 1
+          fi
+          echo "Checking ${PAGE_URL%/}/index.yaml"
           found=false
           for attempt in {1..10}; do
             if curl -fsSL "${PAGE_URL%/}/index.yaml" -o "$index" &&

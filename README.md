@@ -36,10 +36,16 @@ https://fpm-git.github.io/rancher-cluster-themes
 For future releases, update both `package.json` versions, commit the changes,
 and publish a GitHub release tagged `rancher-cluster-themes-dev-<version>`.
 The workflow preserves previous charts and extension files on `gh-pages`. Do
-not reuse a published extension version. If the Pages deployment fails after
-the build succeeds, rerun the failed deployment job.
-CI tests chart packaging and version retention; deployment checks the public
-index, chart and extension files.
+not reuse a published extension version. To redeploy already published assets
+without rebuilding, run:
+
+```sh
+gh workflow run release-charts.yml --ref main \
+  -f release_tag=rancher-cluster-themes-dev-0.1.1 -f redeploy=true
+```
+
+CI tests chart packaging and version retention; a separate job checks the
+public index, chart and extension files after deployment.
 
 ## Install in Rancher
 
