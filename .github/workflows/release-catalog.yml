@@ -46,8 +46,8 @@ jobs:
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4
         with:
           registry: ghcr.io
-          username: ${{ vars.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Push and verify catalog image
         run: |
           image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/ui-extension-$(node -p "require('./package.json').name"):$(node -p "require('./package.json').version")"

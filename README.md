@@ -13,9 +13,8 @@ and logging out restore the original appearance.
 ## Publish the catalog
 
 The **CI** workflow builds and tests the catalog image but does not publish it.
-Add a GitHub Actions repository secret named `GHCR_TOKEN` containing a token
-with permission to write this GHCR package, and a repository variable named
-`GHCR_USERNAME` containing the token owner's GitHub username.
+The release workflow uses `GITHUB_TOKEN`; the repository must have write access
+to the GHCR package under its **Package settings → Manage Actions access**.
 To publish the first image, commit the intended changes on `main` and push them:
 
 ```sh
