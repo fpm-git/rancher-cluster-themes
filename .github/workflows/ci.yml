@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+      - name: Lint
+        run: yarn lint
+      - name: Test
+        run: yarn test:ci --runInBand
+      - name: Type-check
+        run: yarn tsc --noEmit -p pkg/rancher-cluster-themes/tsconfig.json
+      - name: Build extension
+        run: yarn build-pkg rancher-cluster-themes
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        with:
+          version: v3.8.0
+      - name: Build catalog image without pushing
+        run: yarn publish-pkgs -c -n -r ci.invalid -o ci
+      - name: Verify catalog image exists
+        run: |
+          image="ci.invalid/ci/ui-extension-$(node -p "require('./package.json').name"):$(node -p "require('./package.json').version")"
+          docker image inspect --format '{{.Id}}' "$image"

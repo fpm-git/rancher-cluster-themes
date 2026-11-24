@@ -10,6 +10,25 @@ The default style is `bold`. Set the cluster annotation
 to restore the default. Colors must be 3- or 6-digit hex values. Global pages
 and logging out restore the original appearance.
 
+## Install
+
+Publish a non-prerelease GitHub release tagged
+`rancher-cluster-themes-dev-0.1.0`. The release workflow builds and publishes
+the catalog image:
+
+```text
+ghcr.io/<owner>/ui-extension-rancher-cluster-themes-dev:0.1.0
+```
+
+In Rancher, open **Extensions → Manage Extension Catalogs → Import Extension
+Catalog**, enter the image reference, then install **Cluster Themes** from
+**Available**. The Rancher cluster must be able to pull the image; private images
+require an image pull secret in `cattle-ui-plugin-system`.
+
+For each release, update the root `package.json` version and use
+`rancher-cluster-themes-dev-<version>` as the release tag. Also update the
+extension package version when the extension changes.
+
 ## Development
 
 Requires Node 24, Yarn 1 and a Rancher 2.15.2 test instance. The extension is
@@ -20,6 +39,7 @@ have not been tested.
 yarn install
 yarn lint
 yarn test:ci --runInBand
+yarn tsc --noEmit -p pkg/rancher-cluster-themes/tsconfig.json
 yarn build-pkg rancher-cluster-themes
 ```
 

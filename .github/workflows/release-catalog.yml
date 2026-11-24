@@ -1,0 +1,19 @@
+name: Release extension catalog
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  publish:
+    uses: rancher/dashboard/.github/workflows/build-extension-catalog.yml@90805d2ca03b8154833aa43f5ec5744f7cee65a7 # v2.15.2
+    permissions:
+      actions: write
+      contents: read
+      packages: write
+    with:
+      registry_target: ghcr.io
+      registry_user: ${{ github.actor }}
+      tagged_release: ${{ github.event.release.tag_name }}
+    secrets:
+      registry_token: ${{ secrets.GITHUB_TOKEN }}
