@@ -19,6 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      chart: ${{ steps.metadata.outputs.chart }}
+      version: ${{ steps.metadata.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +32,10 @@ jobs:
         with:
           ref: gh-pages
           path: site
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: tooling
       - uses: actions/setup-node@v4
         with:
           node-version-file: source/.nvmrc
@@ -40,7 +47,8 @@ jobs:
       - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
         with:
           version: v3.8.0
-      - name: Check release and existing chart
+      - name: Check release
+        id: metadata
         working-directory: source
         env:
           RELEASE_TAG: ${{ inputs.release_tag || github.event.release.tag_name }}
@@ -52,35 +60,13 @@ jobs:
             echo "::error::Release tag must be $expected"
             exit 1
           fi
-          if [ -e "../site/assets/$chart/$chart-$version.tgz" ] ||
-             [ -e "../site/extensions/$chart/$version" ] ||
-             [ -e "../site/extensions/$chart/$version.tgz" ]; then
-            echo "::error::Chart $chart-$version is already published; use a new version."
-            exit 1
-          fi
+          echo "chart=$chart" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build Rancher extension chart
         working-directory: source
         run: yarn publish-pkgs -s "$GITHUB_REPOSITORY" -b gh-pages -n
       - name: Merge Helm repository
-        working-directory: source
-        run: |
-          chart="$(node -p "require('./pkg/rancher-cluster-themes/package.json').name")"
-          version="$(node -p "require('./pkg/rancher-cluster-themes/package.json').version")"
-          test -s "assets/$chart/$chart-$version.tgz"
-          test -s "tmp/extensions/$chart/$version.tgz"
-          test -s "tmp/extensions/$chart/$version/plugin/$chart-$version.umd.min.js"
-          tar -tzf "tmp/extensions/$chart/$version.tgz" | grep -Fx "$version/plugin/$chart-$version.umd.min.js"
-          helm show chart "assets/$chart/$chart-$version.tgz" |
-            yq -e '.annotations."catalog.cattle.io/ui-component" == "plugins"'
-          if [ -f ../site/index.yaml ]; then
-            helm repo index assets --url assets/ --merge ../site/index.yaml
-          else
-            helm repo index assets --url assets/
-          fi
-          mkdir -p ../site/assets ../site/extensions
-          cp -a tmp/assets/. ../site/assets/
-          cp -a tmp/extensions/. ../site/extensions/
-          cp assets/index.yaml ../site/index.yaml
+        run: bash tooling/scripts/merge-helm-repository.sh "$GITHUB_WORKSPACE/source" "$GITHUB_WORKSPACE/site"
       - name: Publish chart assets
         working-directory: site
         run: |
@@ -113,3 +99,48 @@ jobs:
           path: ${{ runner.temp }}/helm-repository
       - uses: actions/deploy-pages@v4
         id: deployment
+      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+        with:
+          version: v3.8.0
+      - name: Verify published repository
+        env:
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          CHART: ${{ needs.build.outputs.chart }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          index="$RUNNER_TEMP/published-index.yaml"
+          chart_file="$RUNNER_TEMP/published-chart.tgz"
+          found=false
+          for attempt in {1..10}; do
+            if curl -fsSL "${PAGE_URL%/}/index.yaml" -o "$index" &&
+               yq -e '.entries[strenv(CHART)][] | select(.version == strenv(VERSION))' "$index" > /dev/null; then
+              found=true
+              break
+            fi
+            echo "Waiting for version $VERSION in the published index ($attempt/10)"
+            sleep 5
+          done
+          if [ "$found" != true ]; then
+            echo "::error::Published index did not contain version $VERSION after 10 attempts"
+            exit 1
+          fi
+          chart_url="$(yq -r '.entries[strenv(CHART)][] | select(.version == strenv(VERSION)) | .urls[0]' "$index")"
+          expected_chart="assets/$CHART/$CHART-$VERSION.tgz"
+          if [ "$chart_url" != "$expected_chart" ]; then
+            echo "::error::Published index does not contain the expected chart URL"
+            exit 1
+          fi
+          curl -fsSL --retry 8 --retry-delay 3 --retry-all-errors "${PAGE_URL%/}/$chart_url" -o "$chart_file"
+          helm show chart "$chart_file" | yq -e '.annotations."catalog.cattle.io/ui-component" == "plugins"'
+          endpoint="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/gh-pages/extensions/$CHART/$VERSION"
+          values="$RUNNER_TEMP/published-values.yaml"
+          helm show values "$chart_file" > "$values"
+          if [ "$(yq -r '.plugin.endpoint' "$values")" != "$endpoint" ] ||
+             [ "$(yq -r '.plugin.compressedEndpoint' "$values")" != "$endpoint.tgz" ]; then
+            echo "::error::Published chart has unexpected extension endpoints"
+            exit 1
+          fi
+          curl -fsSL --retry 8 --retry-delay 3 --retry-all-errors "$endpoint.tgz" -o "$RUNNER_TEMP/published-extension.tgz"
+          tar -tzf "$RUNNER_TEMP/published-extension.tgz" | grep -Fx "$VERSION/plugin/$CHART-$VERSION.umd.min.js"
+          curl -fsSL --retry 8 --retry-delay 3 --retry-all-errors "$endpoint/plugin/$CHART-$VERSION.umd.min.js" -o "$RUNNER_TEMP/published-extension.js"
+          test -s "$RUNNER_TEMP/published-extension.js"

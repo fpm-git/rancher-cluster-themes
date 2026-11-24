@@ -38,6 +38,8 @@ and publish a GitHub release tagged `rancher-cluster-themes-dev-<version>`.
 The workflow preserves previous charts and extension files on `gh-pages`. Do
 not reuse a published extension version. If the Pages deployment fails after
 the build succeeds, rerun the failed deployment job.
+CI tests chart packaging and version retention; deployment checks the public
+index, chart and extension files.
 
 ## Install in Rancher
 
