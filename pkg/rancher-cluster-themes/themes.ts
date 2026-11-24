@@ -58,6 +58,21 @@ function parseColor(value: string): RGB | undefined {
   return [channels[0], channels[1], channels[2]];
 }
 
+function readThemeColor(value: string): RGB | undefined {
+  const parsed = parseColor(value);
+  if (parsed) return parsed;
+  if (!value.trim()) return undefined;
+
+  const probe = document.createElement('span');
+  probe.style.color = value;
+  if (!probe.style.color) return undefined;
+  probe.style.display = 'none';
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  return parseColor(resolved);
+}
+
 function luminance(color: RGB): number {
   const linear = color.map((channel) => {
     const value = channel / 255;
@@ -84,8 +99,8 @@ function safeAmount(base: RGB, color: RGB, amount: number, textColors: RGB[]): n
 
 export function themeTints(style: ThemeStyle, color: string, dark: boolean): typeof palettes[ThemeStyle] | undefined {
   const computed = getComputedStyle(document.body);
-  const bodyText = parseColor(computed.getPropertyValue('--body-text'));
-  const linkText = parseColor(computed.getPropertyValue('--link'));
+  const bodyText = readThemeColor(computed.getPropertyValue('--body-text'));
+  const linkText = readThemeColor(computed.getPropertyValue('--link'));
   const baseColor = parseColor(dark ? '#171b20' : '#ffffff');
   const tintColor = parseColor(color);
   if (!bodyText || !linkText || !baseColor || !tintColor) return undefined;

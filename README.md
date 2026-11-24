@@ -108,7 +108,8 @@ installing for users. CSS tokens are Rancher internals and may change on upgrade
 The tint is reduced to maintain 4.5:1 body-text and link contrast where the
 untinted background already meets it, and otherwise not worsen it. If those
 Rancher colors cannot be read, the theme is not applied. Other UI elements still
-need visual checks in both light and dark modes. See
+need visual checks in both light and dark modes. Named, HSL and opaque hex
+colors are resolved by the browser before contrast is checked. See
 [WCAG text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html),
 [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 and [Material color guidance](https://m3.material.io/styles/color/system/overview).

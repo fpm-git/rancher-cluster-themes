@@ -150,7 +150,7 @@ export default {
       <p>Off by default. This applies to all clusters and does not affect other users.</p>
       <div class="cluster-themes-row">
         <input id="cluster-themes-enabled" v-model="enabled" type="checkbox" :disabled="saving || loadFailed || !isOriginalCluster">
-        <button type="button" :disabled="saving || loadFailed || !isOriginalCluster" @click="saveEnabled">Save account setting</button>
+        <button type="button" class="btn role-primary" :disabled="saving || loadFailed || !isOriginalCluster" @click="saveEnabled">Save account setting</button>
       </div>
 
       <label for="cluster-themes-personal"><strong>My style</strong></label>
@@ -164,7 +164,7 @@ export default {
           <option value="immersive">Immersive</option>
           <option value="minimal">Minimal</option>
         </select>
-        <button type="button" :disabled="saving || loadFailed || !isOriginalCluster" @click="savePersonal">Save my style</button>
+        <button type="button" class="btn role-primary" :disabled="saving || loadFailed || !isOriginalCluster" @click="savePersonal">Save my style</button>
       </div>
 
       <label for="cluster-themes-color"><strong>My color</strong></label>
@@ -180,7 +180,7 @@ export default {
           <option value="rose">Rose</option>
           <option value="amber">Amber</option>
         </select>
-        <button type="button" :disabled="saving || loadFailed || !isOriginalCluster" @click="saveColor">Save my color</button>
+        <button type="button" class="btn role-primary" :disabled="saving || loadFailed || !isOriginalCluster" @click="saveColor">Save my color</button>
       </div>
       <p v-if="!color">Choose a curated color or set a valid cluster badge color.</p>
       <p v-else-if="!previews.subtle" role="alert">Cannot verify Rancher's text colors; themes will not be applied.</p>
@@ -195,7 +195,7 @@ export default {
           <option value="immersive">Immersive</option>
           <option value="minimal">Minimal</option>
         </select>
-        <button type="button" :disabled="saving || loadFailed || !isOriginalCluster || !shared" @click="saveShared">Save shared style</button>
+        <button type="button" class="btn role-primary" :disabled="saving || loadFailed || !isOriginalCluster || !shared" @click="saveShared">Save shared style</button>
       </div>
     </template>
   </section>

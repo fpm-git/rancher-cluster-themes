@@ -69,6 +69,9 @@ test('settings opt in for the account and save a personal color', async () => {
   };
   const wrapper = mount(ThemeSettings, { global: { mocks: { $store: store } } });
   await flushPromises();
+  for (const button of wrapper.findAll('.cluster-themes-row button')) {
+    expect(button.classes()).toEqual(expect.arrayContaining(['btn', 'role-primary']));
+  }
   expect((wrapper.get('#cluster-themes-enabled').element as HTMLInputElement).checked).toBe(false);
   await wrapper.get('#cluster-themes-enabled').setValue(true);
   await wrapper.findAll('button').find((button) => button.text() === 'Save account setting')!.trigger('click');
@@ -94,4 +97,22 @@ test('disables settings when preferences cannot be loaded', async () => {
   expect(wrapper.get('[role="alert"]').text()).toContain('preferences unavailable');
   expect(wrapper.get('#cluster-themes-enabled').attributes('disabled')).toBeDefined();
   expect(wrapper.get('#cluster-themes-color').attributes('disabled')).toBeDefined();
+});
+
+test('shows dark-mode previews when Rancher uses browser-normalized text colors', async () => {
+  document.body.style.setProperty('--body-text', '#ffffffff');
+  document.body.style.setProperty('--link', 'hsl(218, 96%, 80%)');
+  const store = {
+    getters: {
+      currentCluster: { id: 'c-123', metadata: { annotations: { 'ui.rancher/badge-color': '#f00' } } },
+      targetRoute: { params: { cluster: 'c-123' } },
+      'prefs/theme': 'dark',
+      'prefs/get': (key: string) => key === ENABLED_PREFERENCE ? false : {},
+    },
+    dispatch: jest.fn().mockResolvedValue({ data: {} }),
+  };
+  const wrapper = mount(ThemeSettings, { global: { mocks: { $store: store } } });
+  await flushPromises();
+  expect(wrapper.findAll('.cluster-themes-swatch')).toHaveLength(4);
+  expect(wrapper.text()).not.toContain("Cannot verify Rancher's text colors");
 });

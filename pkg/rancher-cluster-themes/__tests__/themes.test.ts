@@ -135,6 +135,25 @@ test('does not apply a theme when text colors cannot be verified', () => {
   expect(warn).toHaveBeenCalledWith(expect.stringContaining('cannot verify'));
 });
 
+test('resolves browser-normalized Rancher text colors before checking dark-mode contrast', () => {
+  document.body.style.setProperty('--body-text', '#ffffffff');
+  document.body.style.setProperty('--link', 'hsl(218, 96%, 80%)');
+  const store = createMockStore();
+  store.getters['prefs/theme'] = 'dark';
+  startThemes(store);
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#171b20');
+  expect(themeTints('layered', '#ff0000', true)).toBeDefined();
+  expect(document.body.querySelector('span')).toBeNull();
+});
+
+test('rejects invalid and translucent Rancher colors', () => {
+  document.body.style.setProperty('--body-text', '#ffffffff');
+  document.body.style.setProperty('--link', 'rgba(155, 191, 253, 0.5)');
+  expect(themeTints('layered', '#ff0000', true)).toBeUndefined();
+  document.body.style.setProperty('--link', 'not-a-color');
+  expect(themeTints('layered', '#ff0000', true)).toBeUndefined();
+});
+
 test('rechecks text colors after Rancher updates its theme classes', async () => {
   const store = createMockStore();
   store.overrides.production = 'immersive';
