@@ -34,6 +34,8 @@ jobs:
           version: v3.8.0
       - name: Test Helm packaging and version retention
         run: bash scripts/test-helm-repository.sh "$GITHUB_WORKSPACE" "$RUNNER_TEMP/helm-repository-test"
+      - name: Test published repository monitoring
+        run: bash scripts/test-published-repository.sh "$GITHUB_WORKSPACE" "$RUNNER_TEMP/published-repository-test"
       - name: Build catalog image without pushing
         run: yarn publish-pkgs -c -n -r ci.invalid -o ci
       - name: Verify catalog image exists

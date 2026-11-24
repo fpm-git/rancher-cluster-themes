@@ -5,7 +5,7 @@ A Rancher UI extension that colors cluster pages using the cluster's existing
 table, modal, drawer and log surfaces. Clusters without a badge color retain
 Rancher's normal appearance.
 
-The 0.1.1 MVP was installed and its cluster theme verified in Rancher 2.15.2.
+Versions 0.1.1 and 0.2.0 were installed and visually verified in Rancher 2.15.2.
 
 Use the brush button in a cluster's header to choose **Layered**, **Immersive**
 or **Minimal**. The shared style applies to everyone unless they choose a
@@ -27,11 +27,14 @@ the `gh-pages` branch from `main` if it does not exist, and set
 git push origin main:refs/heads/gh-pages
 ```
 
-After pushing this workflow to `main`, publish the existing 0.1.1 release:
+If the `github-pages` environment restricts deployment refs, allow release tags
+matching `rancher-cluster-themes-dev-*` as well as `main`.
+
+To publish a release whose assets have not already been published, for example:
 
 ```sh
 gh workflow run release-charts.yml --ref main \
-  -f release_tag=rancher-cluster-themes-dev-0.1.1
+  -f release_tag=rancher-cluster-themes-dev-0.2.0
 ```
 
 Wait for **Publish extension Helm repository** to succeed. Its public URL is:
@@ -48,12 +51,22 @@ without rebuilding, run:
 
 ```sh
 gh workflow run release-charts.yml --ref main \
-  -f release_tag=rancher-cluster-themes-dev-0.1.1 -f redeploy=true
+  -f release_tag=rancher-cluster-themes-dev-0.2.0 -f redeploy=true
 ```
 
 CI tests chart packaging and version retention; a separate job checks the
 public index, chart and extension files after deployment. If deployment or
 verification fails, rerun the failed jobs.
+
+Dependabot proposes weekly dependency and GitHub Actions updates for review.
+The Rancher Shell pin is excluded, including from Dependabot security-update
+PRs; check security alerts and evaluate Shell changes against the target Rancher
+version separately. A weekly workflow checks all published chart versions and
+extension files. Enable GitHub Actions failure notifications: checks detect
+problems but do not repair outages, publish updates, or upgrade installations.
+Review the nested extension manifest's development dependencies separately.
+Scheduled workflows in public repositories can be disabled after 60 days without
+repository activity; use independent monitoring for critical availability.
 
 ## Install in Rancher
 
@@ -87,4 +100,6 @@ the browser must be able to reach the local server.
 
 Test cluster switches, global pages, dark/light modes and alert readability before
 installing for users. CSS tokens are Rancher internals and may change on upgrades.
+Strong colors can reduce text and link contrast; verify the chosen colors in
+both light and dark modes.
 If an extension prevents navigation, use [Safe Mode](https://extensions.rancher.io/extensions/next/advanced/safe-mode).
