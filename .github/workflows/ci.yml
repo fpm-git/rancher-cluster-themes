@@ -29,7 +29,7 @@ jobs:
         run: yarn tsc --noEmit -p pkg/rancher-cluster-themes/tsconfig.json
       - name: Build extension
         run: yarn build-pkg rancher-cluster-themes
-      - uses: azure/setup-helm@dda3372f752e03dde6b3237bc9431cdc2f7a02a2 # v5.0.0
+      - uses: azure/setup-helm@2f5e7bc67f1f9972ab16657bb795f36d8f04de0e # v5.1.0
         with:
           version: v3.8.0
       - name: Test Helm packaging and version retention
