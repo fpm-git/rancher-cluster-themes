@@ -15,26 +15,26 @@ and logging out restore the original appearance.
 The **CI** workflow builds and tests the catalog image but does not publish it.
 The release workflow uses `GITHUB_TOKEN`; the repository must have write access
 to the GHCR package under its **Package settings → Manage Actions access**.
-To publish the first image, commit the intended changes on `main` and push them:
+To publish version 0.1.1, commit the intended changes on `main` and push them:
 
 ```sh
 git push origin main
 ```
 
 Create the tag on the intended commit if it does not already exist. If it does
-exist, inspect it with `git show rancher-cluster-themes-dev-0.1.0` instead;
+exist, inspect it with `git show rancher-cluster-themes-dev-0.1.1` instead;
 do not move an existing release tag.
 
 ```sh
-git tag -a rancher-cluster-themes-dev-0.1.0 -m "Initial catalog release"
+git tag -a rancher-cluster-themes-dev-0.1.1 -m "Catalog release 0.1.1"
 ```
 
 Push the tag and publish the GitHub release (requires the `gh` CLI):
 
 ```sh
-git push origin rancher-cluster-themes-dev-0.1.0
-gh release create rancher-cluster-themes-dev-0.1.0 --verify-tag \
-  --title "Cluster Themes 0.1.0" --notes "Initial Cluster Themes release."
+git push origin rancher-cluster-themes-dev-0.1.1
+gh release create rancher-cluster-themes-dev-0.1.1 --verify-tag \
+  --title "Cluster Themes 0.1.1" --notes "Fix Rancher extension compatibility."
 ```
 
 In **Actions**, wait for **Release extension catalog** to succeed.
@@ -43,13 +43,13 @@ To retry a release after fixing a publishing failure, run the workflow from
 
 ```sh
 gh workflow run release-catalog.yml --ref main \
-  -f release_tag=rancher-cluster-themes-dev-0.1.0
+  -f release_tag=rancher-cluster-themes-dev-0.1.1
 ```
 
 The expected image is:
 
 ```text
-ghcr.io/fpm-git/ui-extension-rancher-cluster-themes-dev:0.1.0
+ghcr.io/fpm-git/ui-extension-rancher-cluster-themes-dev:0.1.1
 ```
 
 For each release, update the root `package.json` version and use
@@ -69,6 +69,9 @@ extension package version when the extension changes.
 
 Importing the catalog creates Rancher-managed resources to serve it; it does not
 install the extension until step 5.
+
+If the catalog is already imported, update its Deployment image to the new
+reference instead, then refresh its repository in Rancher.
 
 ## Development
 

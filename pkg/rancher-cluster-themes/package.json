@@ -1,12 +1,11 @@
 {
   "name": "rancher-cluster-themes",
   "description": "Per-cluster themes for Rancher",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": false,
   "rancher": {
     "annotations": {
       "catalog.cattle.io/display-name": "Cluster Themes",
-      "catalog.cattle.io/ui-extensions-host": "rancher-manager",
       "catalog.cattle.io/rancher-version": ">= 2.15.2 < 2.16.0",
       "catalog.cattle.io/ui-extensions-version": ">= 3.0.0 < 4.0.0"
     }
