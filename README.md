@@ -1,7 +1,8 @@
 # Rancher Cluster Themes
 
 A Rancher UI extension that colors cluster pages. It changes page, navigation,
-table, modal, drawer and log surfaces.
+table, modal and drawer surfaces. Log and terminal colors remain unchanged to
+preserve their own text and highlight contrast.
 
 Versions 0.1.1 and 0.2.0 were installed and visually verified in Rancher 2.15.2.
 
@@ -14,7 +15,8 @@ Rancher user preferences and do not affect other users.
 Colors can follow the cluster badge, its complementary hue, or a curated
 palette. A curated color works even without a badge color. The shared style
 applies only to users who enable themes and have no personal style override.
-Changing it requires permission to edit the cluster.
+Changing it requires permission to edit the cluster. Style previews are
+illustrative; actual colors depend on Rancher's active theme.
 
 The shared style is stored in the `rancher-cluster-themes.local/style`
 annotation. The default is `layered`; the legacy values `bold` and `soft` map
@@ -105,9 +107,11 @@ the browser must be able to reach the local server.
 
 Test cluster switches, global pages, dark/light modes and alert readability before
 installing for users. CSS tokens are Rancher internals and may change on upgrades.
-The tint is reduced to maintain 4.5:1 body-text and link contrast where the
-untinted background already meets it, and otherwise not worsen it. If those
-Rancher colors cannot be read, the theme is not applied. Other UI elements still
+Rancher's original surface colors are tinted rather than replaced, preserving
+table groups, hover states and section shading. The tint is reduced to maintain
+4.5:1 body-text and link contrast where the untinted background already meets it,
+and otherwise not worsen it. If required background or text colors cannot be
+resolved, the theme is not applied. Other UI elements still
 need visual checks in both light and dark modes. Named, HSL and opaque hex
 colors are resolved by the browser before contrast is checked. See
 [WCAG text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html),

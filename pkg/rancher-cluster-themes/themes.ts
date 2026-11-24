@@ -27,8 +27,8 @@ export interface ThemeStore extends SettingsStore {
 const properties = [
   '--body-bg', '--header-bg', '--nav-bg', '--topmenu-bg', '--modal-bg',
   '--sortable-table-bg', '--sortable-table-row-bg', '--sortable-table-header-bg',
-  '--sortable-table-hover-bg', '--drawer-body-bg', '--wm-body-bg', '--logs-bg',
-  '--terminal-bg', '--rc-section-background-primary', '--rc-section-background-secondary',
+  '--sortable-table-hover-bg', '--drawer-body-bg',
+  '--rc-section-background-primary', '--rc-section-background-secondary',
   '--box-bg', '--simple-box-bg',
 ] as const;
 
@@ -178,36 +178,59 @@ function syncTheme(store: ThemeStore): void {
     return;
   }
 
-  if (!originalStyles) {
-    originalStyles = new Map(properties.map((property) => [
-      property,
-      {
-        value:    document.body.style.getPropertyValue(property),
-        priority: document.body.style.getPropertyPriority(property),
-      },
-    ]));
-  }
-
+  clearTheme();
   const dark = getters['prefs/theme'] === 'dark';
-  const base = dark ? '#171b20' : '#ffffff';
   const palette = themeTints(style, color, dark);
   if (!palette) {
     console.warn('Cluster Themes: cannot verify body and link contrast; theme not applied.');
-    clearTheme();
     return;
   }
 
-  for (const property of properties) {
-    const isChrome = property === '--nav-bg' || property === '--topmenu-bg' || property === '--header-bg';
-    const isSurface = property === '--modal-bg' || property === '--sortable-table-row-bg'
-      || property === '--drawer-body-bg' || property === '--box-bg' || property === '--simple-box-bg';
-    const isAccent = property === '--sortable-table-header-bg'
-      || property === '--sortable-table-hover-bg'
-      || property === '--rc-section-background-secondary';
-    const amount = isChrome ? palette.chrome : isSurface ? palette.surface : isAccent ? palette.accent : palette.page;
-    const value = `color-mix(in srgb, ${base} ${100 - amount}%, ${color} ${amount}%)`;
-
-    document.body.style.setProperty(property, value);
+  const computed = getComputedStyle(document.body);
+  const bodyText = readThemeColor(computed.getPropertyValue('--body-text'));
+  const linkText = readThemeColor(computed.getPropertyValue('--link'));
+  const tint = parseColor(color);
+  if (!bodyText || !linkText || !tint) {
+    console.warn('Cluster Themes: cannot verify body and link contrast; theme not applied.');
+    return;
+  }
+  const originals = new Map(properties.map((property) => [
+    property,
+    {
+      value: document.body.style.getPropertyValue(property),
+      priority: document.body.style.getPropertyPriority(property),
+    },
+  ]));
+  const rawBases = new Map(properties.map((property) => [property, computed.getPropertyValue(property).trim()]));
+  const bases = new Map(properties.map((property) => [property, readThemeColor(rawBases.get(property) || '')]));
+  const sectionProperties = ['--rc-section-background-primary', '--rc-section-background-secondary'] as const;
+  const hasSections = sectionProperties.some((property) => rawBases.get(property));
+  const requiredProperties = properties.filter((property) =>
+    hasSections || !sectionProperties.some((section) => section === property)
+  );
+  const missing = requiredProperties.filter((property) => !bases.get(property));
+  if (missing.length) {
+    console.warn('Cluster Themes: could not read background colors; theme not applied:', missing.join(', '));
+    return;
+  }
+  const groups: { properties: (typeof properties)[number][]; amount: number }[] = [
+    { properties: ['--body-bg', ...(hasSections ? sectionProperties : [])], amount: palette.page },
+    { properties: ['--header-bg', '--nav-bg', '--topmenu-bg'], amount: palette.chrome },
+    { properties: ['--sortable-table-bg', '--sortable-table-row-bg', '--sortable-table-header-bg', '--sortable-table-hover-bg'], amount: palette.accent },
+    { properties: ['--modal-bg', '--drawer-body-bg', '--box-bg', '--simple-box-bg'], amount: palette.surface },
+  ];
+  originalStyles = originals;
+  for (const group of groups) {
+    const entries = group.properties
+      .map((property) => [property, bases.get(property)] as const)
+      .filter((entry): entry is readonly [(typeof properties)[number], RGB] => !!entry[1]);
+    const amount = entries.reduce(
+      (limit, [, base]) => Math.min(limit, safeAmount(base, tint, group.amount, [bodyText, linkText])),
+      group.amount
+    );
+    for (const [property, base] of entries) {
+      document.body.style.setProperty(property, `color-mix(in srgb, rgb(${base.join(', ')}) ${100 - amount}%, ${color} ${amount}%)`);
+    }
   }
 }
 

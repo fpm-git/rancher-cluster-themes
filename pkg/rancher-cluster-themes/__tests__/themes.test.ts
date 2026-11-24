@@ -34,6 +34,25 @@ function createMockStore() {
 }
 
 beforeEach(() => {
+  const styles = document.createElement('style');
+  styles.id = 'rancher-theme-fixture';
+  styles.textContent = `
+    body {
+      --body-bg: #ffffff; --header-bg: #ffffff; --nav-bg: #ffffff; --topmenu-bg: #ffffff;
+      --sortable-table-bg: #f2f2f2; --sortable-table-row-bg: #ffffff;
+      --sortable-table-header-bg: #f5f5f5; --sortable-table-hover-bg: #f5f5f5;
+      --modal-bg: #ffffff; --drawer-body-bg: #f4f5fa; --box-bg: #f4f5fa; --simple-box-bg: #ffffff;
+      --rc-section-background-primary: #ffffff; --rc-section-background-secondary: #f5f5f5;
+    }
+    body.theme-dark {
+      --body-bg: #171b20; --header-bg: #171b20; --nav-bg: #171b20; --topmenu-bg: #171b20;
+      --sortable-table-bg: #171c22; --sortable-table-row-bg: #25282f;
+      --sortable-table-header-bg: #171c22; --sortable-table-hover-bg: #32353c;
+      --modal-bg: #25282f; --drawer-body-bg: #171c22; --box-bg: #171c22; --simple-box-bg: #25282f;
+      --rc-section-background-primary: #25282f; --rc-section-background-secondary: #171c22;
+    }
+  `;
+  document.head.appendChild(styles);
   document.body.style.setProperty('--body-text', '#111111');
   document.body.style.setProperty('--link', '#3458a8');
 });
@@ -41,8 +60,38 @@ beforeEach(() => {
 afterEach(() => {
   stopThemes();
   document.body.removeAttribute('style');
+  document.body.classList.remove('theme-dark');
+  document.getElementById('rancher-theme-fixture')?.remove();
   jest.restoreAllMocks();
 });
+
+test.each(['subtle', 'minimal', 'layered', 'immersive'] as ThemeStyle[])(
+  'preserves table grouping, hover and section surfaces with %s in light and dark modes',
+  (style) => {
+    const store = createMockStore();
+    store.overrides.production = style;
+    for (const dark of [false, true]) {
+      document.body.classList.toggle('theme-dark', dark);
+      store.getters['prefs/theme'] = dark ? 'dark' : 'light';
+      document.body.style.setProperty('--body-text', dark ? '#fffafa' : '#111111');
+      document.body.style.setProperty('--link', dark ? '#9bbffd' : '#3458a8');
+      startThemes(store);
+      const table = document.body.style.getPropertyValue('--sortable-table-bg');
+      const row = document.body.style.getPropertyValue('--sortable-table-row-bg');
+      const hover = document.body.style.getPropertyValue('--sortable-table-hover-bg');
+      const section = document.body.style.getPropertyValue('--rc-section-background-primary');
+      const sectionAlt = document.body.style.getPropertyValue('--rc-section-background-secondary');
+      expect(table).not.toEqual(row);
+      expect(hover).not.toEqual(row);
+      expect(section).not.toEqual(sectionAlt);
+      expect(table.match(/#f00 \d+%/)?.[0]).toEqual(row.match(/#f00 \d+%/)?.[0]);
+      expect(hover.match(/#f00 \d+%/)?.[0]).toEqual(row.match(/#f00 \d+%/)?.[0]);
+      expect(document.body.style.getPropertyValue('--logs-bg')).toBe('');
+      expect(document.body.style.getPropertyValue('--terminal-bg')).toBe('');
+      stopThemes();
+    }
+  }
+);
 
 test('defaults to no theme and allows account and per-cluster opt-out', () => {
   const store = createMockStore();
@@ -87,22 +136,24 @@ test('limits strong tints to preserve modern Rancher link contrast', () => {
   document.body.style.setProperty('--body-text', '#fffafa');
   document.body.style.setProperty('--link', '#9bbffd');
   store.getters['prefs/theme'] = 'dark';
+  document.body.classList.add('theme-dark');
   store.getters.currentCluster.metadata.annotations['ui.rancher/badge-color'] = '#ffffff';
   store.update();
   expect(document.body.style.getPropertyValue('--nav-bg')).toContain('#ffffff 22%');
 });
 
+const rgb = (hex: string) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+const luminance = (channels: number[]) => channels.map((channel) => {
+  const value = channel / 255;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+const ratio = (a: number[], b: number[]) => {
+  const first = luminance(a);
+  const second = luminance(b);
+  return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
+};
+
 test('preserves body and link contrast across styles and supported color extremes', () => {
-  const rgb = (hex: string) => [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
-  const luminance = (channels: number[]) => channels.map((channel) => {
-    const value = channel / 255;
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
-  const ratio = (a: number[], b: number[]) => {
-    const first = luminance(a);
-    const second = luminance(b);
-    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
-  };
   const styles: ThemeStyle[] = ['subtle', 'minimal', 'layered', 'immersive'];
   for (const [dark, base, body, link] of [
     [false, '#ffffff', '#111111', '#3458a8'],
@@ -126,6 +177,40 @@ test('preserves body and link contrast across styles and supported color extreme
   }
 });
 
+test.each(['subtle', 'minimal', 'layered', 'immersive'] as ThemeStyle[])(
+  'preserves text contrast on each actual surface with %s',
+  (style) => {
+    const store = createMockStore();
+    store.overrides.production = style;
+    for (const [dark, body, link] of [[false, '#111111', '#3458a8'], [true, '#fffafa', '#9bbffd']] as const) {
+      document.body.classList.toggle('theme-dark', dark);
+      document.body.style.setProperty('--body-text', body);
+      document.body.style.setProperty('--link', link);
+      store.getters['prefs/theme'] = dark ? 'dark' : 'light';
+      for (const color of ['#000000', '#ffffff', '#ff0000', '#0000ff']) {
+        store.getters.currentCluster.metadata.annotations['ui.rancher/badge-color'] = color;
+        startThemes(store);
+        for (const property of [
+          '--body-bg', '--header-bg', '--nav-bg', '--topmenu-bg', '--modal-bg',
+          '--sortable-table-bg', '--sortable-table-row-bg', '--sortable-table-header-bg', '--sortable-table-hover-bg',
+          '--drawer-body-bg', '--box-bg', '--simple-box-bg', '--rc-section-background-primary', '--rc-section-background-secondary',
+        ]) {
+          const value = document.body.style.getPropertyValue(property);
+          const match = value.match(/^color-mix\(in srgb, rgb\((\d+), (\d+), (\d+)\) \d+%, #[0-9a-f]{6} (\d+)%\)$/);
+          expect(match).not.toBeNull();
+          const base = match!.slice(1, 4).map(Number);
+          const amount = Number(match![4]);
+          const background = base.map((channel, index) => channel * (100 - amount) / 100 + rgb(color)[index] * amount / 100);
+          for (const text of [body, link]) {
+            expect(ratio(background, rgb(text))).toBeGreaterThanOrEqual(Math.min(4.5, ratio(base, rgb(text))) - 1e-10);
+          }
+        }
+        stopThemes();
+      }
+    }
+  }
+);
+
 test('does not apply a theme when text colors cannot be verified', () => {
   const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
   document.body.style.removeProperty('--link');
@@ -135,13 +220,49 @@ test('does not apply a theme when text colors cannot be verified', () => {
   expect(warn).toHaveBeenCalledWith(expect.stringContaining('cannot verify'));
 });
 
+test('clears the theme when a related surface cannot be resolved', () => {
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  const store = createMockStore();
+  startThemes(store);
+  expect(document.body.style.getPropertyValue('--body-bg')).not.toBe('');
+  const fixture = document.getElementById('rancher-theme-fixture')!;
+  fixture.textContent = fixture.textContent!.replace('--sortable-table-bg: #f2f2f2', '--sortable-table-bg: not-a-color');
+  store.update();
+  expect(document.body.style.getPropertyValue('--body-bg')).toBe('');
+  expect(document.body.style.getPropertyValue('--sortable-table-bg')).toBe('');
+  expect(warn).toHaveBeenCalledWith(expect.stringContaining('theme not applied'), expect.stringContaining('--sortable-table-bg'));
+});
+
+test('supports Rancher themes without section background variables', () => {
+  const fixture = document.getElementById('rancher-theme-fixture')!;
+  fixture.textContent = fixture.textContent!.replace(/--rc-section-background-(primary|secondary): #[0-9a-f]+;/g, '');
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  startThemes(createMockStore());
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#f00 8%');
+  expect(warn).not.toHaveBeenCalled();
+});
+
+test('reapplying a theme uses original colors instead of accumulating tint', () => {
+  const store = createMockStore();
+  startThemes(store);
+  const original = document.body.style.getPropertyValue('--sortable-table-bg');
+  store.update();
+  expect(document.body.style.getPropertyValue('--sortable-table-bg')).toBe(original);
+  store.overrides.production = 'immersive';
+  store.update();
+  store.overrides.production = 'layered';
+  store.update();
+  expect(document.body.style.getPropertyValue('--sortable-table-bg')).toBe(original);
+});
+
 test('resolves browser-normalized Rancher text colors before checking dark-mode contrast', () => {
   document.body.style.setProperty('--body-text', '#ffffffff');
   document.body.style.setProperty('--link', 'hsl(218, 96%, 80%)');
   const store = createMockStore();
   store.getters['prefs/theme'] = 'dark';
+  document.body.classList.add('theme-dark');
   startThemes(store);
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#171b20');
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('rgb(23, 27, 32)');
   expect(themeTints('layered', '#ff0000', true)).toBeDefined();
   expect(document.body.querySelector('span')).toBeNull();
 });
@@ -160,6 +281,7 @@ test('rechecks text colors after Rancher updates its theme classes', async () =>
   store.getters.currentCluster.metadata.annotations['ui.rancher/badge-color'] = '#ffffff';
   startThemes(store);
   store.getters['prefs/theme'] = 'dark';
+  document.body.classList.add('theme-dark');
   store.update();
   document.body.style.setProperty('--body-text', '#fffafa');
   document.body.style.setProperty('--link', '#9bbffd');
@@ -194,24 +316,25 @@ test('themes the page and reacts to a cluster switch and theme preference', () =
   store.getters.currentCluster.metadata.annotations['ui.rancher/badge-color'] = '#0088ff';
   store.getters.currentCluster.metadata.annotations['rancher-cluster-themes.local/style'] = 'soft';
   store.getters['prefs/theme'] = 'dark';
+  document.body.classList.add('theme-dark');
   document.body.style.setProperty('--body-text', '#fffafa');
   document.body.style.setProperty('--link', '#9bbffd');
   store.update();
-  expect(document.body.style.getPropertyValue('--body-bg')).toContain('#171b20 96%, #0088ff 4%');
+  expect(document.body.style.getPropertyValue('--body-bg')).toContain('rgb(23, 27, 32) 96%, #0088ff 4%');
 });
 
 test('clears the theme on global pages and restores prior inline styles on logout', () => {
-  document.body.style.setProperty('--body-bg', 'white', 'important');
+  document.body.style.setProperty('--body-bg', '#ffffff', 'important');
   const store = createMockStore();
   startThemes(store);
   store.getters.targetRoute.params.cluster = '_';
   store.update();
-  expect(document.body.style.getPropertyValue('--body-bg')).toBe('white');
+  expect(document.body.style.getPropertyValue('--body-bg')).toBe('#ffffff');
   expect(document.body.style.getPropertyPriority('--body-bg')).toBe('important');
   store.getters.targetRoute.params.cluster = 'production';
   store.update();
   stopThemes();
-  expect(document.body.style.getPropertyValue('--body-bg')).toBe('white');
+  expect(document.body.style.getPropertyValue('--body-bg')).toBe('#ffffff');
 });
 
 test('does not apply invalid colors or styles', () => {

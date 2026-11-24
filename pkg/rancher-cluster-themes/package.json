@@ -1,7 +1,7 @@
 {
   "name": "rancher-cluster-themes",
   "description": "Per-cluster themes for Rancher",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": false,
   "rancher": {
     "annotations": {
