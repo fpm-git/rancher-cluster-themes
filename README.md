@@ -13,6 +13,9 @@ and logging out restore the original appearance.
 ## Publish the catalog
 
 The **CI** workflow builds and tests the catalog image but does not publish it.
+Add a GitHub Actions repository secret named `GHCR_TOKEN` containing a token
+with permission to write this GHCR package, and a repository variable named
+`GHCR_USERNAME` containing the token owner's GitHub username.
 To publish the first image, commit the intended changes on `main` and push them:
 
 ```sh
@@ -36,6 +39,13 @@ gh release create rancher-cluster-themes-dev-0.1.0 --verify-tag \
 ```
 
 In **Actions**, wait for **Release extension catalog** to succeed.
+To retry a release after fixing a publishing failure, run the workflow from
+`main` using the existing release tag:
+
+```sh
+gh workflow run release-catalog.yml --ref main \
+  -f release_tag=rancher-cluster-themes-dev-0.1.0
+```
 
 The expected image is:
 
